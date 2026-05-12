@@ -125,13 +125,27 @@ class KasirController extends Controller
 
     /**
      * Daftar Staff yang Tersedia di Cabang Ini
+     * 
+     * Hanya menampilkan staff dari cabang kasir yang sedang login.
+     * Field `is_checked_in` menunjukkan apakah staff sudah absen masuk hari ini.
      */
     public function indexAvailableStaff(Request $request)
     {
         $kasir = $request->user();
+        $today = now()->toDateString();
+
         $staff = User::where('branch_id', $kasir->branch_id)
             ->where('role', 'staff')
-            ->get();
+            ->get()
+            ->map(function ($s) use ($today) {
+                $attendance = Attendance::where('user_id', $s->id)
+                    ->where('date', $today)
+                    ->first();
+                $s->is_checked_in = (bool) $attendance;
+                $s->check_in_time  = $attendance?->check_in;
+                return $s;
+            });
+
         return response()->json($staff);
     }
 
@@ -183,6 +197,22 @@ class KasirController extends Controller
 
             $totalAmount = 0;
             $itemsToSave = [];
+
+            // Validasi: staff yang dipilih harus dari cabang yang sama dengan kasir
+            foreach ($request->items as $item) {
+                if ($item['type'] === 'service' && !empty($item['staff_id'])) {
+                    $staff = \App\Models\User::where('id', $item['staff_id'])
+                        ->where('branch_id', $branch->id)
+                        ->where('role', 'staff')
+                        ->first();
+
+                    if (!$staff) {
+                        return response()->json([
+                            'message' => 'Staff dengan ID ' . $item['staff_id'] . ' tidak ditemukan atau bukan dari cabang ini.',
+                        ], 422);
+                    }
+                }
+            }
 
             foreach ($request->items as $item) {
                 if ($item['type'] === 'service') {

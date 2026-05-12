@@ -12,212 +12,197 @@ Semua endpoint yang memerlukan login menggunakan **Bearer Token**.
 
 1. Lakukan request login sesuai role.
 2. Copy nilai `token` dari response JSON.
-3. Di setiap request selanjutnya, tambahkan Header:
+3. Tambahkan Header berikut di setiap request selanjutnya:
    ```
    Authorization: Bearer {token_anda}
    Accept: application/json
    ```
-4. Di Scramble (docs), klik tombol **gembok (Authorize)** di pojok kanan atas, lalu paste token Anda.
+4. Di Scramble (docs), klik tombol **gembok (Authorize)** → paste token.
 
 ---
 
-## ROLE 1: DEVELOPER
+## Akun Demo (setelah `php artisan migrate:fresh --seed`)
+
+| Role      | Email               | Password   |
+|-----------|---------------------|------------|
+| Developer | dev@admin.com       | password   |
+| Owner     | owner@barber.com    | password   |
+| Kasir     | kasir@barber.com    | password   |
+| Staff     | staff@barber.com    | password   |
+| Customer  | test@user.com       | password   |
+
+---
+
+---
+
+# ROLE 1: DEVELOPER
+
+> Developer adalah pengelola platform SaaS. Ia mengawasi seluruh Owner, menyetujui pendaftaran dan top-up saldo, serta mengatur biaya sistem.
 
 **Login:**
-```
+```http
 POST /auth/login/developer
 Body: { "email": "dev@admin.com", "password": "password" }
 ```
 
-Developer adalah pengelola platform SaaS. Ia tidak membuat barbershop, namun mengawasi seluruh ekosistem sistem.
-
 ---
 
-### Langkah 1.1 — Lihat Dashboard Sistem
+## Endpoint Milik Developer
 
-```
+### 1. Dashboard Statistik Sistem
+```http
 GET /developer/dashboard
 ```
-
-**Tidak perlu Body.** Respons akan menampilkan statistik global:
-
-```json
-{
-  "total_owners": 1,
-  "total_branches": 3,
-  "total_transactions": 10,
-  "total_system_fee_collected": 20000
-}
-```
-
-> **Catatan:** `total_system_fee_collected` adalah total pendapatan Developer dari biaya per transaksi.
+Menampilkan ringkasan global: jumlah owner, cabang, transaksi, dan total fee yang sudah dikumpulkan.
 
 ---
 
-### Langkah 1.2 — Lihat Daftar Owner yang Mendaftar
-
-```
+### 2. Lihat Daftar Owner
+```http
 GET /developer/owners
 ```
-
-Respons berupa daftar semua akun dengan role `owner`. Perhatikan field `status`:
-- `pending` → Owner baru daftar, belum bisa login ke aplikasi Owner.
-- `active` → Owner sudah disetujui dan bisa menggunakan sistem.
+Perhatikan field `status`:
+- `pending` → Owner baru daftar, belum bisa login.
+- `active` → Sudah disetujui, bisa menggunakan sistem.
 
 ---
 
-### Langkah 1.3 — Setujui Pendaftaran Owner
-
-Setelah Owner mendaftar (status `pending`), Developer harus menyetujuinya.
-
-```
+### 3. Setujui Pendaftaran Owner
+```http
 PUT /developer/owners/{id}/approve
 ```
-
-- Ganti `{id}` dengan ID Owner yang ingin disetujui (didapat dari Langkah 1.2).
+- `{id}` = ID Owner dari endpoint sebelumnya.
 - Tidak perlu Body.
-- Sistem akan otomatis mengaktifkan akun dan menginisialisasi saldo deposit Owner menjadi Rp 0.
+- Sistem otomatis inisialisasi saldo deposit Owner menjadi **Rp 0**.
 
 ---
 
-### Langkah 1.4 — Atur Biaya Sistem (Fee per Transaksi)
-
-Developer bisa mengubah besaran biaya yang dipotong dari saldo Owner setiap kali ada transaksi di kasir.
-
+### 4. Lihat Permintaan Top-up Saldo (Pending)
+```http
+GET /developer/deposits/requests
 ```
+Menampilkan seluruh request top-up yang menunggu verifikasi.
+
+---
+
+### 5. Setujui Top-up Saldo
+```http
+PUT /developer/deposits/requests/{id}/approve
+```
+- Saldo Owner bertambah otomatis sejumlah yang diminta.
+
+---
+
+### 6. Tolak Top-up Saldo
+```http
+PUT /developer/deposits/requests/{id}/reject
+```
+- Status menjadi `rejected`, saldo tidak berubah.
+
+---
+
+### 7. Atur Biaya Sistem per Transaksi
+```http
 PUT /developer/system-fee
 Body (JSON):
 {
   "fee": 2000
 }
 ```
-
-> **Contoh:** Jika diset `2000`, maka setiap kali Kasir mencatat transaksi, saldo Owner akan berkurang Rp 2.000 sebagai biaya penggunaan sistem SaaS.
-
----
-
-### Langkah 1.5 — Lihat Permintaan Top-up Saldo
-
-Owner tidak bisa langsung menambah saldo sendiri. Mereka harus *request* ke Developer.
-
-```
-GET /developer/deposits/requests
-```
-
-Respons berupa daftar request top-up dengan status `pending`.
+Setiap kali kasir mencatat transaksi, saldo Owner berkurang sejumlah `fee` ini.
 
 ---
 
-### Langkah 1.6 — Setujui atau Tolak Top-up
-
-Setelah memverifikasi pembayaran (di dunia nyata via transfer bank), Developer menyetujui request:
-
-```
-PUT /developer/deposits/requests/{id}/approve
-```
-```
-PUT /developer/deposits/requests/{id}/reject
-```
-
-- Ganti `{id}` dengan ID request deposit.
-- Tidak perlu Body.
-- Jika **approve**: saldo Owner otomatis bertambah sesuai jumlah yang diminta.
-- Jika **reject**: status menjadi `rejected`, saldo tidak berubah.
-
----
-
-### Langkah 1.7 — Lihat Riwayat Transaksi Sistem (Pendapatan SaaS)
-
-```
+### 8. Lihat Riwayat Transaksi Sistem (Pendapatan Developer)
+```http
 GET /developer/transactions
 ```
-
-Menampilkan daftar seluruh pemotongan saldo Owner akibat biaya sistem. Ini adalah catatan **pendapatan Developer** dari platform SaaS.
+Daftar seluruh pemotongan saldo Owner sebagai biaya penggunaan SaaS.
 
 ---
 
-## ROLE 2: OWNER
+## ⚠️ Endpoint Lain yang Wajib Ditest oleh Mahasiswa Developer
+
+Saat membangun **Aplikasi Developer**, mahasiswa perlu menguji skenario berikut agar logika bisnisnya berjalan. Artinya, mahasiswa perlu login ke role lain untuk membuat data terlebih dahulu:
+
+| Skenario | Role yang Digunakan | Endpoint yang Diakses |
+|---|---|---|
+| Buat Owner baru untuk disetujui | – (tanpa login) | `POST /auth/register-owner` |
+| Cek Owner sudah aktif bisa login | Owner | `POST /auth/login/owner` |
+| Buat request top-up agar bisa disetujui | Owner | `POST /owner/deposits/topup` |
+| Buat transaksi agar fee terpotong | Kasir | `POST /kasir/transactions` |
+| Verifikasi fee terpotong di dashboard | Developer | `GET /developer/dashboard` → cek `total_system_fee_collected` |
+
+---
+
+---
+
+# ROLE 2: OWNER
+
+> Owner adalah pemilik barbershop. Ia mengatur seluruh konfigurasi bisnis dan memantau operasional cabang.
+
+**Daftar Akun Owner Baru (jika belum ada):**
+```http
+POST /auth/register-owner
+Body (JSON):
+{
+  "name": "Nama Owner",
+  "email": "owner_baru@email.com",
+  "password": "password",
+  "password_confirmation": "password"
+}
+```
+> Setelah mendaftar, akun berstatus `pending`. **Developer harus menyetujuinya dulu** sebelum Owner bisa login.
 
 **Login:**
-```
+```http
 POST /auth/login/owner
 Body: { "email": "owner@barber.com", "password": "password" }
 ```
 
-> **PENTING:** Sebelum bisa login, pastikan akun Owner sudah disetujui oleh Developer (status `active`).
+---
 
-Owner adalah pemilik bisnis barbershop. Ia bertugas menyiapkan seluruh konfigurasi bisnis sebelum operasional bisa berjalan.
+## Endpoint Milik Owner
+
+### 1. Kelola Profil
+```http
+GET /owner/profile                          # Lihat profil
+PUT /owner/profile                          # Update profil
+Body (JSON): { "name": "...", "email": "...", "password": "...", "password_confirmation": "..." }
+```
 
 ---
 
-### Langkah 2.1 — Kelola Profil
-
-**Lihat Profil:**
-```
-GET /owner/profile
-```
-
-**Update Profil:**
-```
-PUT /owner/profile
-Body (JSON):
-{
-  "name": "Budi Barbershop Owner",
-  "email": "owner@barber.com",
-  "password": "password_baru",
-  "password_confirmation": "password_baru"
-}
-```
-> Semua field bersifat opsional. Kirim hanya field yang ingin diubah.
-
----
-
-### Langkah 2.2 — Buat Cabang Barbershop
-
-Langkah **wajib pertama** sebelum menambah karyawan atau produk.
-
-**Lihat Semua Cabang:**
-```
-GET /owner/branches
+### 2. Kelola Cabang (CRUD Lengkap)
+```http
+GET    /owner/branches                      # Lihat semua cabang
+POST   /owner/branches                      # Tambah cabang baru
+PUT    /owner/branches/{id}                 # Update informasi cabang
+DELETE /owner/branches/{id}                 # Hapus cabang
 ```
 
-**Tambah Cabang Baru:**
-```
-POST /owner/branches
-Body (JSON):
+**Body untuk POST & PUT:**
+```json
 {
   "name": "Barber King Pusat",
   "address": "Jl. Sudirman No. 1"
 }
 ```
-> Catat `id` dari respons. ID ini dibutuhkan untuk mendaftarkan karyawan dan produk.
-
-**Update Cabang:**
-```
-PUT /owner/branches/{id}
-Body (JSON): { "name": "...", "address": "..." }
-```
-
-**Hapus Cabang:**
-```
-DELETE /owner/branches/{id}
-```
+> ⚠️ Catat `id` cabang setelah membuat — dibutuhkan untuk mendaftarkan produk dan karyawan.
 
 ---
 
-### Langkah 2.3 — Buat Layanan (Jasa)
-
-Layanan bersifat **universal** — berlaku di semua cabang milik Owner ini.
-
-**Lihat Semua Layanan:**
+### 3. Kelola Layanan / Jasa (CRUD Lengkap)
+Layanan bersifat **universal** (berlaku di semua cabang milik Owner ini).
+```http
+GET    /owner/services                      # Lihat semua layanan
+POST   /owner/services                      # Tambah layanan
+PUT    /owner/services/{id}                 # Update layanan
+DELETE /owner/services/{id}                 # Hapus layanan
 ```
-GET /owner/services
-```
 
-**Tambah Layanan:**
-```
-POST /owner/services
-Body (JSON):
+**Body untuk POST:**
+```json
 {
   "name": "Gunting Rambut Dewasa",
   "price": 35000,
@@ -225,35 +210,21 @@ Body (JSON):
   "commission_amount": 5000
 }
 ```
-> - `commission_type`: `fixed` (nominal tetap) atau `percentage` (persentase dari harga).
-> - `commission_amount`: Jika `fixed` isi nominalnya (contoh: `5000`). Jika `percentage` isi persentasenya (contoh: `15` untuk 15%).
-
-**Update Layanan:**
-```
-PUT /owner/services/{id}
-Body (JSON): { field yang diubah }
-```
-
-**Hapus Layanan:**
-```
-DELETE /owner/services/{id}
-```
+> `commission_type`: `fixed` (nominal tetap) atau `percentage` (% dari harga). Komisi ini yang akan diterima Staff setiap kali layanan digunakan.
 
 ---
 
-### Langkah 2.4 — Buat Produk (Barang)
-
-Produk bersifat **per cabang** — stok di tiap cabang dikelola secara independen.
-
-**Lihat Semua Produk (seluruh cabang):**
+### 4. Kelola Produk / Barang (CRUD Lengkap)
+Produk bersifat **per cabang** — stok berbeda di tiap cabang.
+```http
+GET    /owner/products                      # Lihat semua produk
+POST   /owner/products                      # Tambah produk
+PUT    /owner/products/{id}                 # Update produk
+DELETE /owner/products/{id}                 # Hapus produk
 ```
-GET /owner/products
-```
 
-**Tambah Produk:**
-```
-POST /owner/products
-Body (JSON):
+**Body untuk POST:**
+```json
 {
   "branch_id": 1,
   "name": "Pomade Waterbased",
@@ -261,362 +232,263 @@ Body (JSON):
   "stock": 20
 }
 ```
-> `branch_id` wajib diisi. Pastikan ID cabang sudah dibuat terlebih dahulu (Langkah 2.2).
-
-**Update Produk:**
-```
-PUT /owner/products/{id}
-Body (JSON): { field yang diubah }
-```
-
-**Hapus Produk:**
-```
-DELETE /owner/products/{id}
-```
 
 ---
 
-### Langkah 2.5 — Rekrut Karyawan
-
-Menambahkan akun Kasir atau Staff yang bekerja di cabang tertentu.
-
-**Lihat Semua Karyawan:**
-```
-GET /owner/employees
+### 5. Kelola Karyawan
+```http
+GET  /owner/employees                       # Lihat semua karyawan (kasir & staff)
+POST /owner/employees                       # Tambah karyawan baru
 ```
 
-**Tambah Karyawan:**
-```
-POST /owner/employees
-Body (JSON):
+**Body untuk POST:**
+```json
 {
   "branch_id": 1,
-  "name": "Siti Kasir",
-  "email": "siti@barber.com",
+  "name": "Joni Barberman",
+  "email": "joni@barber.com",
   "password": "password",
-  "role": "kasir",
-  "daily_base_salary": 45000
+  "role": "staff",
+  "daily_base_salary": 50000
 }
 ```
-> - `role`: harus `kasir` atau `staff`.
-> - `daily_base_salary`: Gaji pokok per hari (basis perhitungan gaji bulanan dari absensi).
-> - Ulangi dengan `role: "staff"` untuk mendaftarkan Barberman/Staff.
+> `role`: hanya `kasir` atau `staff`. `daily_base_salary` adalah gaji pokok per hari (basis perhitungan gaji bulanan).
 
 ---
 
-### Langkah 2.6 — Kelola Saldo Deposit SaaS
+### 6. Kelola Saldo Deposit SaaS
+```http
+GET  /owner/deposits                        # Cek saldo saat ini
+POST /owner/deposits/topup                  # Request top-up ke Developer
+```
 
-**Cek Saldo Saat Ini:**
-```
-GET /owner/deposits
-```
-
-**Request Top-up Saldo ke Developer:**
-```
-POST /owner/deposits/topup
-Body (JSON):
+**Body untuk POST topup:**
+```json
 {
   "amount": 500000,
-  "description": "Topup via Transfer Bank"
+  "description": "Topup via Transfer Bank BCA"
 }
 ```
-> Setelah request dikirim, saldo **belum** bertambah. Developer harus menyetujuinya terlebih dahulu (Langkah 1.6). Jika saldo habis, kasir tidak bisa memproses transaksi.
+> Saldo belum bertambah sampai Developer menyetujuinya. Jika saldo habis, kasir **tidak bisa** mencatat transaksi.
 
 ---
 
-### Langkah 2.7 — Pantau Laporan Operasional
-
-**Laporan Penjualan (semua transaksi):**
+### 7. Lihat Laporan Operasional
+```http
+GET /owner/reports/sales                    # Laporan seluruh transaksi
+GET /owner/reports/services                 # Laporan performa layanan jasa
+GET /owner/reports/payrolls                 # Laporan penggajian karyawan
 ```
-GET /owner/reports/sales
-```
-
-**Laporan Performa Layanan Jasa:**
-```
-GET /owner/reports/services
-```
-
-**Laporan Penggajian Karyawan:**
-```
-GET /owner/reports/payrolls
-```
-> Menampilkan rekap absensi dan gaji pokok harian seluruh karyawan di cabang-cabang milik Owner.
 
 ---
 
-## ROLE 3: KASIR
+## ⚠️ Endpoint Lain yang Wajib Ditest oleh Mahasiswa Owner
+
+| Skenario | Role yang Digunakan | Endpoint yang Diakses |
+|---|---|---|
+| Verifikasi akun Owner aktif setelah disetujui | Developer | `PUT /developer/owners/{id}/approve` |
+| Verifikasi saldo bertambah setelah topup disetujui | Developer | `PUT /developer/deposits/requests/{id}/approve` |
+| Pastikan karyawan yang dibuat bisa login | Kasir/Staff | `POST /auth/login/kasir` atau `POST /auth/login/staff` |
+| Cek produk muncul di sisi pelanggan setelah ditambahkan | Customer | `GET /customer/branches/{id}/catalog` |
+| Verifikasi layanan muncul saat kasir mau transaksi | Kasir | `GET /kasir/services` |
+| Cek laporan bertambah setelah ada transaksi | Kasir | `POST /kasir/transactions` |
+
+---
+
+---
+
+# ROLE 3: KASIR
+
+> Kasir mengelola transaksi pelanggan dan stok barang di cabang.
 
 **Login:**
-```
+```http
 POST /auth/login/kasir
 Body: { "email": "kasir@barber.com", "password": "password" }
 ```
-
-> **PENTING:** Akun kasir dibuat oleh Owner (Langkah 2.5). Pastikan Owner sudah membuat akun kasir dan menentukan cabang tempat kasir bekerja.
+> Akun kasir dibuat oleh Owner. Kasir otomatis terikat ke 1 cabang.
 
 ---
 
-### Langkah 3.1 — Absen Masuk (Check-in)
+## Endpoint Milik Kasir (Urutan Operasional)
 
-Lakukan **pertama kali** setiap hari sebelum mulai bekerja.
-
-```
+### 1. Absen Masuk (Awal Hari)
+```http
 POST /kasir/attendance/check-in
 ```
-Tidak perlu Body. Sistem otomatis mencatat:
-- Waktu check-in sekarang.
-- Mengunci nominal gaji pokok harian (`daily_base_salary`) ke kolom `daily_base_salary_earned`.
-
-> **Validasi:** Jika sudah check-in hari ini, sistem akan menolak dengan pesan error 400.
+Tidak perlu Body. Sistem mencatat waktu dan mengunci gaji harian.
+> Error 400 jika sudah check-in hari ini.
 
 ---
 
-### Langkah 3.2 — Lihat Daftar Layanan & Produk (Untuk Transaksi)
+### 2. Lihat Data Referensi (Sebelum Transaksi)
 
-Sebelum mencatat transaksi, kasir perlu mengetahui ID layanan dan produk yang tersedia.
+Kasir perlu tahu ID dari data-data ini sebelum mencatat transaksi:
 
-**Lihat Layanan yang Tersedia:**
+```http
+GET /kasir/customers               # Daftar pelanggan (cari ID pelanggan)
+GET /kasir/services                # Daftar layanan tersedia + harga + info komisi
+GET /kasir/products                # Daftar produk di cabang ini + stok saat ini
+GET /kasir/available-staff         # Daftar staff yang bertugas di cabang ini
 ```
-GET /kasir/services
-```
-> Menampilkan daftar jasa milik Owner dari cabang kasir bekerja, lengkap dengan ID, harga, dan info komisi.
-
-**Lihat Produk di Cabang Ini:**
-```
-GET /kasir/products
-```
-> Menampilkan daftar produk khusus cabang ini beserta **stok saat ini**.
-
-**Lihat Staff yang Bertugas Hari Ini:**
-```
-GET /kasir/available-staff
-```
-> Menampilkan daftar staff di cabang yang sama. ID staff diperlukan untuk mencatat siapa yang melayani pelanggan.
 
 ---
 
-### Langkah 3.3 — Kelola Data Pelanggan
-
-**Cari/Lihat Daftar Pelanggan:**
-```
-GET /kasir/customers
-```
-
-**Daftarkan Pelanggan Walk-in (Baru):**
-Jika pelanggan belum punya akun, kasir bisa mendaftarkannya secara cepat.
-```
+### 3. Daftarkan Pelanggan Walk-in (Jika Perlu)
+```http
 POST /kasir/customers
 Body (JSON):
 {
-  "name": "Pelanggan Baru",
-  "email": "pelanggan_baru@email.com"
+  "name": "Pelanggan Walk-in",
+  "email": "walkIn123@email.com"
 }
 ```
-> Password default untuk pelanggan walk-in adalah `pelanggan123`. Pelanggan bisa mengubahnya sendiri nanti via aplikasi Customer.
+> Password default pelanggan walk-in: `pelanggan123`.
 
 ---
 
-### Langkah 3.4 — Catat Transaksi (Inti Proses Bisnis)
-
-Ini adalah endpoint terpenting di seluruh sistem.
-
-```
+### 4. Catat Transaksi (Inti Proses Kasir)
+```http
 POST /kasir/transactions
 Body (JSON):
 {
   "customer_id": 6,
   "payment_method": "cash",
   "items": [
-    {
-      "type": "service",
-      "id": 1,
-      "staff_id": 4
-    },
-    {
-      "type": "product",
-      "id": 1
-    }
+    { "type": "service", "id": 1, "staff_id": 4 },
+    { "type": "product", "id": 1 }
   ]
 }
 ```
 
-**Penjelasan Field:**
 | Field | Wajib | Keterangan |
 |---|---|---|
-| `customer_id` | Tidak | ID pelanggan. Isi `null` jika pelanggan tidak mau didata. |
-| `payment_method` | Ya | Metode bayar: `cash`, `transfer`, `qris`, dll. |
-| `items` | Ya | Array item yang dibeli/digunakan. |
-| `items.*.type` | Ya | Tipe item: `service` atau `product`. |
-| `items.*.id` | Ya | ID layanan atau ID produk. |
-| `items.*.staff_id` | Ya (jika service) | ID staff yang melayani. Wajib jika tipe `service`. |
+| `customer_id` | Tidak | Bisa `null` jika pelanggan tidak mau didata. |
+| `payment_method` | Ya | Contoh: `cash`, `transfer`, `qris` |
+| `items` | Ya | Array, minimal 1 item |
+| `items.*.type` | Ya | `service` atau `product` |
+| `items.*.id` | Ya | ID layanan atau ID produk |
+| `items.*.staff_id` | Ya (jika `service`) | ID staff yang melayani. Dapat komisi. |
 
-**Yang Terjadi Saat Transaksi Berhasil:**
-1. Total harga dihitung otomatis dari seluruh item.
-2. Stok produk yang dibeli berkurang otomatis.
-3. Komisi staff terkunci dan tersimpan di database.
-4. Saldo deposit Owner **dipotong** sebesar biaya sistem (default Rp 2.000) yang ditentukan Developer.
-5. Riwayat transaksi tersimpan dan bisa dilihat pelanggan.
+**Yang otomatis terjadi saat transaksi berhasil:**
+1. Stok produk berkurang.
+2. Komisi staff tersimpan.
+3. Saldo deposit Owner **dipotong** sejumlah biaya sistem (default Rp 2.000).
 
-> **Error 402:** Muncul jika saldo deposit Owner tidak cukup untuk membayar biaya sistem. Owner harus top-up terlebih dahulu.
+> **Error 402**: Saldo Owner tidak cukup — Owner harus top-up dulu ke Developer.
 
 ---
 
-### Langkah 3.5 — Catat Restok Barang
-
-Saat ada barang masuk ke cabang, kasir mencatat penambahan stok.
-
-```
+### 5. Catat Restok Barang
+```http
 POST /kasir/restocks
-Body (JSON):
-{
-  "product_id": 1,
-  "qty": 10
-}
+Body (JSON): { "product_id": 1, "qty": 10 }
 ```
-> Stok produk akan bertambah otomatis sebesar `qty` yang diinput.
+Stok bertambah otomatis.
 
 ---
 
-### Langkah 3.6 — Lihat Laporan Transaksi
-
-**Laporan Penjualan Produk (Barang):**
-```
-GET /kasir/reports/sales
-```
-
-**Laporan Jasa Layanan:**
-```
-GET /kasir/reports/services
+### 6. Lihat Laporan
+```http
+GET /kasir/transactions            # Seluruh transaksi di cabang ini
+GET /kasir/reports/sales           # Laporan penjualan produk
+GET /kasir/reports/services        # Laporan jasa layanan
 ```
 
 ---
 
-### Langkah 3.7 — Rekap Gaji Bulan Ini
-
-```
+### 7. Rekap Gaji Bulan Ini
+```http
 GET /kasir/salary-summary
 ```
-
-Respons:
-```json
-{
-  "month": "May 2026",
-  "total_base_salary": 135000,
-  "take_home_pay": 135000
-}
-```
-> Dihitung dari akumulasi `daily_base_salary_earned` pada setiap hari di bulan ini di mana kasir melakukan check-in.
+Dihitung dari total hari check-in × gaji pokok harian.
 
 ---
 
-### Langkah 3.8 — Absen Pulang (Check-out)
-
-Lakukan di akhir jam kerja.
-
-```
+### 8. Absen Pulang (Akhir Hari)
+```http
 POST /kasir/attendance/check-out
-```
-Tidak perlu Body. Sistem mencatat waktu check-out sekarang.
-
-> **Validasi:** Tidak bisa check-out jika belum check-in, dan tidak bisa check-out dua kali sehari.
-
-**Lihat Riwayat Absensi:**
-```
-GET /kasir/attendance/history
+GET  /kasir/attendance/history     # Lihat riwayat absensi
 ```
 
 ---
 
-## ROLE 4: STAFF
+## ⚠️ Endpoint Lain yang Wajib Ditest oleh Mahasiswa Kasir
+
+| Skenario | Role yang Digunakan | Endpoint yang Diakses |
+|---|---|---|
+| Pastikan layanan ada sebelum ditampilkan di UI | Owner | `POST /owner/services` |
+| Pastikan produk ada dan stoknya > 0 | Owner | `POST /owner/products` |
+| Cek ID staff yang bertugas hari ini | – | `GET /kasir/available-staff` |
+| Verifikasi stok berkurang setelah transaksi | Kasir | `GET /kasir/products` → cek field `stock` |
+| Verifikasi saldo Owner berkurang setelah transaksi | Owner | `GET /owner/deposits` |
+| Pastikan riwayat transaksi muncul di sisi pelanggan | Customer | `GET /customer/visit-history` |
+| Verifikasi komisi staff terekam | Staff | `GET /staff/salary-summary` |
+
+---
+
+---
+
+# ROLE 4: STAFF
+
+> Staff adalah Barberman yang melayani pelanggan, mencatat absensi, dan mengunggah foto hasil kerja.
 
 **Login:**
-```
+```http
 POST /auth/login/staff
 Body: { "email": "staff@barber.com", "password": "password" }
 ```
 
-> **PENTING:** Akun staff dibuat oleh Owner (Langkah 2.5).
-
 ---
 
-### Langkah 4.1 — Absen Masuk (Check-in)
+## Endpoint Milik Staff (Urutan Operasional)
 
-Lakukan **pertama kali** setiap hari sebelum mulai melayani pelanggan.
-
-```
+### 1. Absen Masuk (Awal Hari)
+```http
 POST /staff/attendance/check-in
 ```
-Tidak perlu Body. Sistem mencatat waktu dan mengunci gaji harian.
-
-> **Validasi:** Hanya bisa check-in sekali sehari.
+Mencatat waktu dan mengunci gaji pokok harian.
+> Error 400 jika sudah check-in hari ini.
 
 ---
 
-### Langkah 4.2 — Lihat & Update Profil
-
-**Lihat Profil:**
-```
+### 2. Kelola Profil
+```http
 GET /staff/profile
-```
-
-**Update Profil:**
-```
 PUT /staff/profile
-Body (JSON):
-{
-  "name": "Joni Barberman Updated",
-  "email": "joni@barber.com",
-  "password": "password_baru",
-  "password_confirmation": "password_baru"
-}
+Body (JSON): { "name": "...", "email": "...", "password": "...", "password_confirmation": "..." }
 ```
-> Semua field bersifat opsional.
 
 ---
 
-### Langkah 4.3 — Upload Foto Hasil Cukuran ke Galeri Pelanggan
+### 3. Upload Foto Hasil Cukuran ke Galeri Pelanggan
+Setelah selesai melayani dan pelanggan sudah membayar:
 
-Setelah selesai melayani pelanggan dan pelanggan sudah membayar di kasir, staff mendokumentasikan hasil kerjanya.
-
-**Langkah Persiapan:** Cari tahu ID Pelanggan yang baru dilayani.
-```
+**Langkah A — Cari ID pelanggan yang dilayani:**
+```http
 GET /staff/customers
 ```
 
-**Upload Foto:**
-```
+**Langkah B — Upload foto:**
+```http
 POST /staff/galleries
 Content-Type: multipart/form-data
 
 Form fields:
-  customer_id : 6
-  transaction_id : 2   (opsional, ID transaksi yang berkaitan)
-  image : [pilih file gambar .jpg/.png, maks 2MB]
+  customer_id  : 6
+  transaction_id: 2        (opsional, untuk menghubungkan ke transaksi)
+  image        : [file gambar .jpg/.png, maks 2MB]
 ```
+> ⚠️ **Harus menggunakan `multipart/form-data`** (bukan JSON) karena ada upload file. Di Postman: Body → form-data.
 
-> **Penting:** Endpoint ini menggunakan format `multipart/form-data` (bukan JSON), karena ada upload file gambar. Di Postman, gunakan tab **Body → form-data**.
-
-> Foto yang berhasil diupload akan otomatis muncul di galeri pelanggan saat pelanggan membuka `GET /customer/galleries`.
+> Foto akan otomatis muncul di `GET /customer/galleries` milik pelanggan tersebut.
 
 ---
 
-### Langkah 4.4 — Lihat Riwayat Absensi
-
-```
-GET /staff/attendance/history
-```
-
-Menampilkan seluruh catatan kehadiran staff dari waktu ke waktu.
-
----
-
-### Langkah 4.5 — Lihat Rekap Gaji & Komisi Bulan Ini
-
-```
+### 4. Lihat Rekap Gaji & Komisi Bulan Ini
+```http
 GET /staff/salary-summary
 ```
-
-Respons:
 ```json
 {
   "month": "May 2026",
@@ -625,26 +497,44 @@ Respons:
   "take_home_pay": 175000
 }
 ```
-
-> - `total_base_salary`: Dari jumlah hari check-in × gaji pokok harian.
-> - `total_commissions`: Akumulasi komisi dari seluruh transaksi jasa yang ditangani bulan ini.
-> - `take_home_pay`: Total yang akan diterima.
+> Komisi hanya muncul jika staff sudah ter-assign ke transaksi jasa (via `staff_id` di `POST /kasir/transactions`).
 
 ---
 
-### Langkah 4.6 — Absen Pulang (Check-out)
-
+### 5. Lihat Riwayat Absensi
+```http
+GET /staff/attendance/history
 ```
+
+---
+
+### 6. Absen Pulang (Akhir Hari)
+```http
 POST /staff/attendance/check-out
 ```
-> Tidak bisa check-out jika belum check-in hari ini, atau jika sudah check-out sebelumnya.
+> Error 400 jika belum check-in atau sudah check-out.
 
 ---
 
-## ROLE 5: CUSTOMER (PELANGGAN)
+## ⚠️ Endpoint Lain yang Wajib Ditest oleh Mahasiswa Staff
+
+| Skenario | Role yang Digunakan | Endpoint yang Diakses |
+|---|---|---|
+| Pastikan ada data pelanggan sebelum upload galeri | Kasir | `POST /kasir/customers` (daftar pelanggan walk-in) |
+| Verifikasi foto muncul di galeri pelanggan | Customer | `GET /customer/galleries` |
+| Pastikan komisi tercatat setelah kasir input transaksi | Kasir | `POST /kasir/transactions` dengan `staff_id` diisi |
+| Cek komisi muncul di rekap gaji | Staff | `GET /staff/salary-summary` → `total_commissions` |
+
+---
+
+---
+
+# ROLE 5: CUSTOMER (PELANGGAN)
+
+> Pelanggan menggunakan aplikasi untuk melihat informasi barbershop, riwayat kunjungan, dan galeri foto.
 
 **Daftar Akun Baru:**
-```
+```http
 POST /auth/register-customer
 Body (JSON):
 {
@@ -656,142 +546,136 @@ Body (JSON):
 ```
 
 **Login:**
-```
+```http
 POST /auth/login/customer
 Body: { "email": "test@user.com", "password": "password" }
 ```
 
 ---
 
-### Langkah 5.1 — Lihat Profil & Update
+## Endpoint Milik Customer
 
-**Lihat Profil:**
-```
+### 1. Kelola Profil
+```http
 GET /customer/profile
-```
-
-**Update Profil:**
-```
 PUT /customer/profile
-Body (JSON):
-{
-  "name": "Nama Baru",
-  "email": "email_baru@gmail.com"
-}
+Body (JSON): { "name": "...", "email": "..." }
 ```
 
 ---
 
-### Langkah 5.2 — Cari & Pilih Cabang Barbershop
-
-**Lihat Semua Cabang yang Tersedia:**
-```
+### 2. Lihat Semua Cabang Barbershop
+```http
 GET /customer/branches
 ```
-Respons berupa daftar seluruh cabang dari semua owner yang ada di sistem. Catat `id` cabang yang ingin dikunjungi.
+Menampilkan semua cabang dari semua Owner di sistem. Catat `id` cabang yang ingin dikunjungi.
 
 ---
 
-### Langkah 5.3 — Lihat Katalog Layanan & Produk di Cabang
-
-```
+### 3. Lihat Katalog Cabang (Layanan + Produk Sekaligus)
+```http
 GET /customer/branches/{id}/catalog
 ```
-Ganti `{id}` dengan ID cabang yang dipilih dari Langkah 5.2.
-
-Respons berisi tiga bagian sekaligus:
+Ganti `{id}` dengan ID cabang. Respons berisi:
 ```json
 {
-  "branch": { "id": 1, "name": "Barber King Pusat", ... },
+  "branch": { "id": 1, "name": "Barber King Pusat", "address": "..." },
   "services": [
-    { "id": 1, "name": "Gunting Rambut Dewasa", "price": "35000.00" },
-    ...
+    { "id": 1, "name": "Gunting Rambut Dewasa", "price": "35000.00" }
   ],
   "products": [
-    { "id": 1, "name": "Pomade Waterbased", "price": "45000.00", "stock": 18 },
-    ...
+    { "id": 1, "name": "Pomade Waterbased", "price": "45000.00", "stock": 18 }
   ]
 }
 ```
-> Pelanggan bisa mengetahui jasa apa yang tersedia dan produk apa yang dijual di cabang tersebut sebelum datang.
 
 ---
 
-### Langkah 5.4 — Lihat Riwayat Kunjungan
-
-Setelah pernah bertransaksi di barbershop:
-```
+### 4. Lihat Riwayat Kunjungan
+```http
 GET /customer/visit-history
 ```
-
-Respons menampilkan seluruh transaksi pelanggan, lengkap dengan detail:
+Menampilkan semua transaksi yang pernah dilakukan, lengkap dengan:
 - Cabang tempat bertransaksi.
-- Daftar item (jasa dan/atau produk) yang dibeli.
+- Daftar jasa/produk yang dibeli.
 - Staff yang melayani (untuk jasa).
 - Total pembayaran.
 
 ---
 
-### Langkah 5.5 — Lihat Galeri Foto Hasil Cukuran
-
-```
+### 5. Lihat Galeri Foto Hasil Cukuran
+```http
 GET /customer/galleries
 ```
-
-Menampilkan seluruh foto dokumentasi hasil potongan rambut yang pernah diunggah oleh staff untuk pelanggan ini. Foto diupload oleh staff via `POST /staff/galleries`.
-
----
-
-## Ringkasan Alur Bisnis End-to-End
-
-```
-[Developer] Setujui Owner → Setujui Top-up Saldo
-     ↓
-[Owner] Buat Cabang → Tambah Layanan → Tambah Produk → Rekrut Kasir & Staff
-     ↓
-[Kasir/Staff] Check-in Absen
-     ↓
-[Customer] Lihat Katalog → Datang ke Barbershop
-     ↓
-[Staff] Melayani pelanggan (potong rambut)
-     ↓
-[Kasir] Input Transaksi → Sistem potong saldo Owner (SaaS Fee)
-     ↓
-[Staff] Upload foto hasil cukuran → Masuk galeri pelanggan
-     ↓
-[Customer] Lihat riwayat kunjungan & galeri foto
-     ↓
-[Kasir/Staff] Check-out Absen
-     ↓
-[Owner] Pantau laporan penjualan, layanan & penggajian
-     ↓
-[Developer] Monitor transaksi sistem & pendapatan SaaS fee
-```
+Foto-foto ini diunggah oleh Staff setelah pelayanan selesai (`POST /staff/galleries`).
 
 ---
 
-## Akun Demo (Setelah `php artisan migrate:fresh --seed`)
+## ⚠️ Endpoint Lain yang Wajib Ditest oleh Mahasiswa Customer
 
-| Role | Email | Password |
+| Skenario | Role yang Digunakan | Endpoint yang Diakses |
 |---|---|---|
-| Developer | dev@admin.com | password |
-| Owner | owner@barber.com | password |
-| Kasir | kasir@barber.com | password |
-| Staff | staff@barber.com | password |
-| Customer | test@user.com | password |
+| Pastikan ada cabang sebelum tampil di list | Owner | `POST /owner/branches` |
+| Pastikan ada layanan & produk di katalog | Owner | `POST /owner/services` & `POST /owner/products` |
+| Buat transaksi agar muncul di riwayat kunjungan | Kasir | `POST /kasir/transactions` (dengan `customer_id` diisi) |
+| Upload foto agar muncul di galeri | Staff | `POST /staff/galleries` (dengan `customer_id` diisi) |
+| Verifikasi foto galeri bisa diakses via URL | – | Buka `http://127.0.0.1:8000/storage/{photo_url}` di browser |
 
 ---
 
-## Perintah Berguna
+---
+
+# Alur Bisnis End-to-End
+
+Urutan wajib agar sistem dapat berjalan dari nol:
+
+```
+1. [Developer]  Atur biaya sistem           → PUT  /developer/system-fee
+2. [-]          Owner mendaftar             → POST /auth/register-owner
+3. [Developer]  Setujui Owner               → PUT  /developer/owners/{id}/approve
+4. [Owner]      Top-up saldo               → POST /owner/deposits/topup
+5. [Developer]  Setujui top-up             → PUT  /developer/deposits/requests/{id}/approve
+6. [Owner]      Buat cabang                → POST /owner/branches
+7. [Owner]      Buat layanan               → POST /owner/services
+8. [Owner]      Buat produk                → POST /owner/products
+9. [Owner]      Rekrut kasir & staff       → POST /owner/employees  (x2)
+10. [Kasir]     Check-in absen             → POST /kasir/attendance/check-in
+11. [Staff]     Check-in absen             → POST /staff/attendance/check-in
+12. [-]         Pelanggan daftar/datang    → POST /auth/register-customer
+13. [Kasir]     Catat transaksi            → POST /kasir/transactions
+14. [Staff]     Upload foto galeri          → POST /staff/galleries
+15. [Customer]  Lihat riwayat & galeri     → GET  /customer/visit-history & /galleries
+16. [Owner]     Pantau laporan             → GET  /owner/reports/sales & /payrolls
+17. [Developer] Cek pendapatan SaaS        → GET  /developer/transactions
+```
+
+---
+
+# Tips Pengujian
+
+- **Postman/Insomnia**: Gunakan untuk upload file gambar (galeri). Scramble kurang nyaman untuk file.
+- **Baca error message**: Sistem memberikan pesan error yang informatif. Misal:
+  - `Error 400` → Validasi gagal atau aturan bisnis dilanggar.
+  - `Error 401` → Token tidak ada atau sudah expired. Login ulang.
+  - `Error 402` → Saldo Owner tidak cukup untuk biaya sistem.
+  - `Error 403` → Mengakses endpoint yang bukan hak role Anda.
+  - `Error 404` → Data tidak ditemukan.
+  - `Error 422` → Field yang dikirim tidak sesuai validasi.
+- **Catat ID**: Setiap kali membuat data baru (cabang, layanan, produk, user), catat `id`-nya karena akan dibutuhkan di endpoint selanjutnya.
+- **Storage link**: Jalankan `php artisan storage:link` agar URL foto galeri bisa diakses via browser.
+
+---
+
+# Perintah Berguna
 
 ```bash
-# Reset database + isi data demo
+# Reset database + isi ulang data demo
 php artisan migrate:fresh --seed
 
-# Aktifkan storage untuk akses gambar galeri
+# Aktifkan akses file storage (foto galeri)
 php artisan storage:link
 
-# Bersihkan cache (jika ada perubahan routing/config)
+# Bersihkan cache routing & konfigurasi
 php artisan optimize:clear
 
 # Jalankan server lokal

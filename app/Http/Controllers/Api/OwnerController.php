@@ -72,6 +72,34 @@ class OwnerController extends Controller
     }
 
     /**
+     * Update Informasi Cabang
+     * @urlParam id integer example=1
+     * @bodyParam name string example="Barber King Pusat Updated"
+     * @bodyParam address string example="Jl. Sudirman No. 99"
+     */
+    public function updateBranch(Request $request, $id)
+    {
+        $branch = Branch::where('owner_id', $request->user()->id)->findOrFail($id);
+        $data = $request->validate([
+            'name' => 'sometimes|string',
+            'address' => 'sometimes|string',
+        ]);
+        $branch->update($data);
+        return response()->json($branch);
+    }
+
+    /**
+     * Hapus Cabang
+     * @urlParam id integer example=1
+     */
+    public function deleteBranch(Request $request, $id)
+    {
+        $branch = Branch::where('owner_id', $request->user()->id)->findOrFail($id);
+        $branch->delete();
+        return response()->json(['message' => 'Cabang berhasil dihapus.']);
+    }
+
+    /**
      * Daftar Layanan
      */
     public function indexServices(Request $request)
@@ -101,6 +129,38 @@ class OwnerController extends Controller
     }
 
     /**
+     * Update Layanan
+     * @urlParam id integer example=1
+     * @bodyParam name string example="Gunting Rambut VIP"
+     * @bodyParam price integer example=50000
+     * @bodyParam commission_type string example="fixed"
+     * @bodyParam commission_amount integer example=7000
+     */
+    public function updateService(Request $request, $id)
+    {
+        $service = Service::where('owner_id', $request->user()->id)->findOrFail($id);
+        $data = $request->validate([
+            'name' => 'sometimes|string',
+            'price' => 'sometimes|numeric',
+            'commission_type' => 'sometimes|in:percentage,fixed',
+            'commission_amount' => 'sometimes|numeric',
+        ]);
+        $service->update($data);
+        return response()->json($service);
+    }
+
+    /**
+     * Hapus Layanan
+     * @urlParam id integer example=1
+     */
+    public function deleteService(Request $request, $id)
+    {
+        $service = Service::where('owner_id', $request->user()->id)->findOrFail($id);
+        $service->delete();
+        return response()->json(['message' => 'Layanan berhasil dihapus.']);
+    }
+
+    /**
      * Daftar Produk per Cabang
      */
     public function indexProducts(Request $request)
@@ -116,6 +176,38 @@ class OwnerController extends Controller
     {
         $product = Product::create($request->validated());
         return response()->json($product, 201);
+    }
+
+    /**
+     * Update Produk
+     * @urlParam id integer example=1
+     * @bodyParam name string example="Pomade Extra Hold"
+     * @bodyParam price integer example=55000
+     * @bodyParam stock integer example=25
+     */
+    public function updateProduct(Request $request, $id)
+    {
+        $branchIds = $request->user()->branches->pluck('id');
+        $product = Product::whereIn('branch_id', $branchIds)->findOrFail($id);
+        $data = $request->validate([
+            'name' => 'sometimes|string',
+            'price' => 'sometimes|numeric',
+            'stock' => 'sometimes|integer',
+        ]);
+        $product->update($data);
+        return response()->json($product);
+    }
+
+    /**
+     * Hapus Produk
+     * @urlParam id integer example=1
+     */
+    public function deleteProduct(Request $request, $id)
+    {
+        $branchIds = $request->user()->branches->pluck('id');
+        $product = Product::whereIn('branch_id', $branchIds)->findOrFail($id);
+        $product->delete();
+        return response()->json(['message' => 'Produk berhasil dihapus.']);
     }
 
     /**

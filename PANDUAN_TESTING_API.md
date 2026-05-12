@@ -11,10 +11,10 @@
 Semua endpoint yang memerlukan login menggunakan **Bearer Token**.
 
 1. Lakukan request login sesuai role.
-2. Copy nilai `token` dari response JSON.
+2. Copy nilai **`access_token`** dari response JSON (bukan `token`).
 3. Tambahkan Header berikut di setiap request selanjutnya:
    ```
-   Authorization: Bearer {token_anda}
+   Authorization: Bearer {access_token_anda}
    Accept: application/json
    ```
 4. Di Scramble (docs), klik tombol **gembok (Authorize)** → paste token.
@@ -152,7 +152,8 @@ Body (JSON):
   "password_confirmation": "password"
 }
 ```
-> Setelah mendaftar, akun berstatus `pending`. **Developer harus menyetujuinya dulu** sebelum Owner bisa login.
+> ⚠️ Field yang diterima **hanya** `name`, `email`, `password`, `password_confirmation`. Tidak ada field lain.
+> Setelah mendaftar, akun berstatus `pending`. **Developer harus menyetujuinya dulu** (`PUT /developer/owners/{id}/approve`) sebelum Owner bisa login.
 
 **Login:**
 ```http
@@ -258,9 +259,11 @@ POST /owner/employees                       # Tambah karyawan baru
 
 ### 6. Kelola Saldo Deposit SaaS
 ```http
-GET  /owner/deposits                        # Cek saldo saat ini
+GET  /owner/deposits                        # Cek saldo saat ini (balance)
 POST /owner/deposits/topup                  # Request top-up ke Developer
 ```
+
+> ⚠️ **Tidak ada endpoint riwayat deposit untuk Owner.** Untuk melihat histori pemotongan biaya sistem, Owner hanya bisa melihat saldo akhirnya. Riwayat detail hanya bisa dilihat oleh Developer via `GET /developer/transactions`.
 
 **Body untuk POST topup:**
 ```json
@@ -269,7 +272,7 @@ POST /owner/deposits/topup                  # Request top-up ke Developer
   "description": "Topup via Transfer Bank BCA"
 }
 ```
-> Saldo belum bertambah sampai Developer menyetujuinya. Jika saldo habis, kasir **tidak bisa** mencatat transaksi.
+> `amount` minimal 10.000. Saldo belum bertambah sampai Developer menyetujuinya (`PUT /developer/deposits/requests/{id}/approve`). Jika saldo habis, kasir **tidak bisa** mencatat transaksi (Error 402).
 
 ---
 
@@ -390,10 +393,10 @@ Stok bertambah otomatis.
 
 ### 6. Lihat Laporan
 ```http
-GET /kasir/transactions            # Seluruh transaksi di cabang ini
-GET /kasir/reports/sales           # Laporan penjualan produk
-GET /kasir/reports/services        # Laporan jasa layanan
+GET /kasir/reports/sales           # Laporan seluruh transaksi (termasuk produk)
+GET /kasir/reports/services        # Laporan transaksi dengan filter jasa saja
 ```
+> ⚠️ `GET /kasir/transactions` dan `GET /kasir/reports/sales` mengembalikan data yang **sama**. Cukup gunakan salah satu.
 
 ---
 
@@ -544,6 +547,7 @@ Body (JSON):
   "password_confirmation": "password"
 }
 ```
+> ✅ Customer langsung **aktif** setelah mendaftar — tidak perlu menunggu persetujuan Developer. Langsung bisa login.
 
 **Login:**
 ```http

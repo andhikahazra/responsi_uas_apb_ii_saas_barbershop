@@ -6,6 +6,88 @@
 
 ---
 
+## Cara Clone & Setup Project (Dari Awal)
+
+Ikuti langkah-langkah berikut secara **berurutan** untuk menyiapkan project di komputer lokal Anda.
+
+### Prasyarat
+Pastikan sudah terinstal di komputer Anda:
+- **Git**
+- **PHP >= 8.2** (beserta ekstensi yang dibutuhkan Laravel)
+- **Composer**
+- **MySQL** (pastikan service MySQL sedang berjalan)
+
+---
+
+### Langkah 1 — Clone Repository
+
+Buka terminal / Command Prompt, lalu jalankan:
+
+```bash
+git clone https://github.com/andhikahazra/responsi_uas_apb_ii_saas_barbershop.git
+```
+
+### Langkah 2 — Masuk ke Direktori Project
+
+```bash
+cd responsi_uas_apb_ii_saas_barbershop
+```
+
+### Langkah 3 — Install Dependensi PHP
+
+```bash
+composer install
+```
+
+> Proses ini akan mengunduh seluruh library yang dibutuhkan ke folder `vendor/`. Tunggu hingga selesai.
+
+### Langkah 4 — Buat File Konfigurasi Environment
+
+```bash
+copy .env.example .env
+```
+
+> Di Linux/macOS gunakan: `cp .env.example .env`
+
+> ⚠️ Setelah ini, buka file `.env` dan pastikan konfigurasi database sudah sesuai dengan komputer Anda:
+> ```
+> DB_DATABASE=responsi_uas_apb_ii_saas_barbershop
+> DB_USERNAME=root
+> DB_PASSWORD=
+> ```
+
+### Langkah 5 — Generate Application Key
+
+```bash
+php artisan key:generate
+```
+
+### Langkah 6 — Buat Database & Jalankan Migrasi + Seeder
+
+```bash
+php artisan migrate --seed
+```
+
+> Saat muncul pertanyaan `Would you like to create it? (yes/no)`, ketik **`yes`** dan tekan Enter.
+> Perintah ini akan:
+> 1. Membuat database `responsi_uas_apb_ii_saas_barbershop` secara otomatis.
+> 2. Menjalankan semua migrasi (membuat tabel-tabel).
+> 3. Mengisi data dummy/demo via Seeder.
+
+### Langkah 7 — Jalankan Server Lokal
+
+```bash
+php artisan serve
+```
+
+> Server berjalan di `http://127.0.0.1:8000`. Biarkan terminal ini tetap terbuka selama pengujian.
+
+---
+
+> ✅ **Project siap digunakan!** Lanjutkan ke bagian **Akun Demo** di bawah untuk mulai pengujian API.
+
+---
+
 ## Cara Menggunakan Token (Autentikasi)
 
 Semua endpoint yang memerlukan login menggunakan **Bearer Token**.
